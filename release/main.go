@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/daulet/tokenizers/release/tokenizers"
+	"github.com/cohere-ai/tokenizers/release/tokenizers"
 )
 
 func main() {
