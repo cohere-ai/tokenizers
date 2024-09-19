@@ -9,3 +9,6 @@ target
 
 # Python
 .env
+
+# macos
+.DS_Store

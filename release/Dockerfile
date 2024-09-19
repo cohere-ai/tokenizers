@@ -10,7 +10,7 @@ COPY ./Cargo.lock ./Cargo.lock
 RUN cargo build --release
 
 FROM golang:1.21 as builder-go
-ARG DOCKER_TARGETPLATFORM
+ARG TARGETPLATFORM
 WORKDIR /workspace
 COPY ./release/go.mod   .
 COPY ./release/main.go  .
@@ -19,6 +19,6 @@ COPY tokenizer.go       ./tokenizers/
 COPY tokenizers.h       ./tokenizers/
 COPY --from=builder-rust \
     /workspace/target/release/libtokenizers.a \
-    ./tokenizers/lib/${DOCKER_TARGETPLATFORM}/
+    ./tokenizers/
 COPY ./test/data        ./test/data
-RUN go run -ldflags="-extldflags '-L./tokenizers/lib/${DOCKER_TARGETPLATFORM}'" .
+RUN go run .
