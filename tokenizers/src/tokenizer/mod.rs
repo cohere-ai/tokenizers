@@ -17,13 +17,17 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
-
+use std::any::type_name;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::utils::iter::ResultShunt;
 use crate::utils::parallelism::*;
 use crate::utils::progress::{ProgressBar, ProgressStyle};
+
+fn print_type_of<T>(_: &T) {
+    println!("{}", std::any::type_name::<T>());
+}
 
 mod added_vocabulary;
 mod encoding;
@@ -175,6 +179,12 @@ pub trait Trainer {
         I: Iterator<Item = S> + Send,
         S: AsRef<str> + Send,
         F: Fn(&str) -> Result<Vec<String>> + Sync;
+
+    fn feed_pretokenized<I, S, F>(&mut self, iterator: I, process: F) -> Result<()>
+    where
+        I: Iterator<Item = S> + Send,
+        S: AsRef<str> + Send,
+        F: Fn(&str) -> Result<Vec<String>> + Sync;        
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1137,6 +1147,81 @@ where
             .map(|sentence| self.decode(sentence, skip_special_tokens))
             .collect()
     }
+
+    /// Train our Model from files
+    pub fn train_from_pretokenized_data<T>(&mut self, trainer: &mut T, files: Vec<String>) -> Result<&mut Self>
+    where
+        T: Trainer<Model = M> + Sync,
+    {
+        let mut len = 0;
+        for file in files.iter() {
+            len += File::open(file)
+                .and_then(|f| f.metadata())
+                .map(|m| m.len())?;
+        }
+
+        let max_read = 1_000_000;
+
+        ResultShunt::process(
+            files.into_iter().flat_map(|filename| {
+                match File::open(filename) {
+                    Ok(file) => {
+                        let file = BufReader::with_capacity(max_read, file);
+                        // We read new lines using this API instead of the Lines Iterator
+                        // on purpose. We want to keep the `\n` and potential `\r` between each lines
+                        // We use an iterator to be able to chain with par_bridge.
+                        itertools::Either::Left(file.lines_with_ending())
+                    }
+                    Err(e) => itertools::Either::Right(std::iter::once(Err(e))),
+                }
+            }),
+            |sequences| -> Result<()> {
+                let progress = if trainer.should_show_progress() {
+                    let progress = ProgressBar::new(len);
+                    progress.set_style(
+                        ProgressStyle::default_bar()
+                            .template("[{elapsed_precise}] {msg:<30!} {wide_bar} {percent:>18!}%")
+                            .expect("Invalid progress template"),
+                    );
+                    progress
+                        .set_message(format!("Pre-processing files ({:.2} Mo)", len / 1_000_000));
+                    Some(progress)
+                } else {
+                    None
+                };
+
+                trainer.feed_pretokenized(
+                    sequences.inspect(|s| {
+                        if let Some(progress) = &progress {
+                            progress.inc(s.len() as u64)
+                        }
+                    }),
+                    |seq| {
+                        // println!("The type of my_string is: {}", type_name::<typeof seq>());
+                        let split_seq: Vec<String> = seq.split('\t').map(|s| s.to_string()).collect();
+
+                        Ok(split_seq)
+                        // let normalized = self.do_normalize(seq.as_ref())?;
+                        // let pre_tokenized = self.do_pre_tokenize(normalized)?;
+                        // Ok(pre_tokenized
+                        //     .get_splits(OffsetReferential::Original, OffsetType::Byte)
+                        //     .into_iter()
+                        //     .map(|(s, _, _)| s.to_owned())
+                        //     .collect())
+                    },
+                )?;
+
+                if let Some(pbar) = progress {
+                    pbar.finish();
+                }
+                let special_tokens = trainer.train(&mut self.model)?;
+                self.add_special_tokens(&special_tokens);
+
+                Ok(())
+            },
+        )??;
+        Ok(self)
+    }    
 
     /// Train our Model from files
     pub fn train_from_files<T>(&mut self, trainer: &mut T, files: Vec<String>) -> Result<&mut Self>

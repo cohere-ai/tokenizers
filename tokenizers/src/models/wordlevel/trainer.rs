@@ -124,6 +124,38 @@ impl Trainer for WordLevelTrainer {
         self.words = words?;
         Ok(())
     }
+
+    fn feed_pretokenized<I, S, F>(&mut self, iterator: I, process: F) -> Result<()>
+    where
+        I: Iterator<Item = S> + Send,
+        S: AsRef<str> + Send,
+        F: Fn(&str) -> Result<Vec<String>> + Sync,
+    {
+        let words: Result<HashMap<String, u64>> = iterator
+            .maybe_par_bridge()
+            .map(|sequence| {
+                let split_seq = process(sequence.as_ref())?;
+                let segment = split_seq[0].clone();
+                let mut count_str = split_seq[1].to_string();
+                let count_int: u64 = count_str.trim_end().parse().unwrap();
+                let mut map = HashMap::new();
+                map.insert(segment, count_int);
+                Ok(map)
+            })
+            .reduce(
+                || Ok(HashMap::new()),
+                |acc, ws| {
+                    let mut acc = acc?;
+                    for (k, v) in ws? {
+                        acc.entry(k).and_modify(|c| *c += v).or_insert(v);
+                    }
+                    Ok(acc)
+                },
+            );
+
+        self.words = words?;
+        Ok(())
+    }    
 }
 
 #[cfg(test)]

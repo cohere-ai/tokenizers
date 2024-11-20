@@ -261,6 +261,20 @@ impl Trainer for TrainerWrapper {
             Self::UnigramTrainer(wpt) => wpt.feed(iterator, process),
         }
     }
+
+    fn feed_pretokenized<I, S, F>(&mut self, iterator: I, process: F) -> Result<()>
+    where
+        I: Iterator<Item = S> + Send,
+        S: AsRef<str> + Send,
+        F: Fn(&str) -> Result<Vec<String>> + Sync,
+    {
+        match self {
+            Self::BpeTrainer(bpe) => bpe.feed(iterator, process),
+            Self::WordPieceTrainer(wpt) => wpt.feed(iterator, process),
+            Self::WordLevelTrainer(wpt) => wpt.feed(iterator, process),
+            Self::UnigramTrainer(wpt) => wpt.feed(iterator, process),
+        }
+    }    
 }
 
 impl_enum_from!(BpeTrainer, TrainerWrapper, BpeTrainer);

@@ -196,4 +196,13 @@ impl Trainer for WordPieceTrainer {
     {
         self.bpe_trainer.feed(iterator, process)
     }
+
+    fn feed_pretokenized<I, S, F>(&mut self, iterator: I, process: F) -> Result<()>
+    where
+        I: Iterator<Item = S> + Send,
+        S: AsRef<str> + Send,
+        F: Fn(&str) -> Result<Vec<String>> + Sync,
+    {
+        self.bpe_trainer.feed(iterator, process)
+    }    
 }
