@@ -1198,7 +1198,15 @@ where
                     }),
                     |seq| {
                         let split_seq: Vec<String> = seq.split('\t').map(|s| s.to_string()).collect();
-                        Ok(split_seq)
+                        let normalized = self.do_normalize(split_seq[0].clone())?;
+                        let pre_tokenized = self.do_pre_tokenize(normalized)?;
+                        let mut pretokenized_and_freq: Vec<_> = pre_tokenized
+                                .get_splits(OffsetReferential::Original, OffsetType::Byte)
+                                .into_iter()
+                                .map(|(s, _, _)| s.to_owned())
+                                .collect();
+                        pretokenized_and_freq.extend(vec![split_seq[1].clone()].iter().map(|s| s.to_string()));
+                        Ok(pretokenized_and_freq)
                     },
                 )?;
 

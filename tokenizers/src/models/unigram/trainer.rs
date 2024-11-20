@@ -666,14 +666,19 @@ impl Trainer for UnigramTrainer {
             .maybe_par_bridge()
             .map(|sequence| {
                 let split_seq = process(sequence.as_ref())?;
+                let mut count_str = split_seq.last().expect("This should work").to_string();
                 let segment = split_seq[0]
                     .replace("<TSV_ESCAPE_N>", "\n")
                     .replace("<TSV_ESCAPE_T>", "\t")
                     .replace("<TSV_ESCAPE_R>", "\r")
-                    .clone();                let mut count_str = split_seq[1].to_string();
+                    .clone();
+
+                
                 let count_int: u32 = count_str.trim_end().parse().unwrap();
                 let mut map = HashMap::new();
-                map.insert(segment, count_int);
+                for i in 0..split_seq.len() - 1 {
+                    map.insert(split_seq[i].clone(), count_int);
+                }                
                 Ok(map)
             })
             .reduce(
