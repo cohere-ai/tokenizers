@@ -135,8 +135,11 @@ impl Trainer for WordLevelTrainer {
             .maybe_par_bridge()
             .map(|sequence| {
                 let split_seq = process(sequence.as_ref())?;
-                let segment = split_seq[0].clone();
-                let mut count_str = split_seq[1].to_string();
+                let segment = split_seq[0]
+                    .replace("<TSV_ESCAPE_N>", "\n")
+                    .replace("<TSV_ESCAPE_T>", "\t")
+                    .replace("<TSV_ESCAPE_R>", "\r")
+                    .clone();                  let mut count_str = split_seq[1].to_string();
                 let count_int: u64 = count_str.trim_end().parse().unwrap();
                 let mut map = HashMap::new();
                 map.insert(segment, count_int);

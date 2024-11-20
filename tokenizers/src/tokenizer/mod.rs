@@ -1197,17 +1197,8 @@ where
                         }
                     }),
                     |seq| {
-                        // println!("The type of my_string is: {}", type_name::<typeof seq>());
                         let split_seq: Vec<String> = seq.split('\t').map(|s| s.to_string()).collect();
-
                         Ok(split_seq)
-                        // let normalized = self.do_normalize(seq.as_ref())?;
-                        // let pre_tokenized = self.do_pre_tokenize(normalized)?;
-                        // Ok(pre_tokenized
-                        //     .get_splits(OffsetReferential::Original, OffsetType::Byte)
-                        //     .into_iter()
-                        //     .map(|(s, _, _)| s.to_owned())
-                        //     .collect())
                     },
                 )?;
 
