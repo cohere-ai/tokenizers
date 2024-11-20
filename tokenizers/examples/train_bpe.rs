@@ -5,15 +5,16 @@ use tokenizers::pre_tokenizers::byte_level::ByteLevel;
 use tokenizers::pre_tokenizers::PreTokenizerWrapper;
 use tokenizers::processors::PostProcessorWrapper;
 use tokenizers::{AddedToken, Model, Result, TokenizerBuilder};
+use std::fs;
 
 use std::path::Path;
 
 fn main() -> Result<()> {
     let vocab_size: usize = 100;
 
-    let min_frequency = 0;
+    let min_frequency = 5;
     let add_prefix_space = false;
-    let trim_offsets = false;
+    let trim_offsets = true;
     let use_regex = false;
 
     let mut trainer = BpeTrainerBuilder::new()
@@ -37,14 +38,29 @@ fn main() -> Result<()> {
         .with_decoder(Some(ByteLevel::new(add_prefix_space, trim_offsets, use_regex)))
         .build()?;
 
-    let pretty = false;
+
+    
+    let input_files_dir = "/home/felipe_cohere_com/roman_mixture_50gb_pretok_counts_400_workers_tsv_unigram_preprocessing/pretokenized_counts";
+    let paths = fs::read_dir(input_files_dir).unwrap();
+
+    let file_paths: Vec<String> = paths
+    .map(|entry| {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        path.to_str().unwrap().to_string()
+    })
+    .collect();    
+
+    let pretty = true;
     tokenizer
         .train_from_pretokenized_data(
             // .train_from_files(
             &mut trainer,
-            vec!["/home/felipe_cohere_com/pretokenized.tsv".to_string()],
+            // vec!["/home/felipe_cohere_com/pretokenized.tsv".to_string()],
+            file_paths,
         )?
         .save("tokenizer.json", pretty)?;
+
 
     Ok(())
 }
