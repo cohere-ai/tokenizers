@@ -9,8 +9,10 @@ use std::fs;
 
 use std::path::Path;
 
+//  cargo run --package tokenizers --example train_bpe
+
 fn main() -> Result<()> {
-    let vocab_size: usize = 100;
+    let vocab_size: usize = 255000;
 
     let min_frequency = 5;
     let add_prefix_space = false;
@@ -40,7 +42,8 @@ fn main() -> Result<()> {
 
 
     
-    let input_files_dir = "/home/felipe_cohere_com/roman_mixture_50gb_pretok_counts_400_workers_tsv_unigram_preprocessing/pretokenized_counts";
+    let mut input_files_dir = "/home/felipe_cohere_com/roman_mixture_50gb_pretok_counts_400_workers_tsv_unigram_preprocessing/pretokenized_counts";
+    // input_files_dir = "/home/felipe_cohere_com/test_csvs/";
     let paths = fs::read_dir(input_files_dir).unwrap();
 
     let file_paths: Vec<String> = paths
