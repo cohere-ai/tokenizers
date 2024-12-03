@@ -1493,3 +1493,12 @@ mod test {
         assert_eq!(decoded.unwrap(), "Hey! how is this token: д")
     }
 }
+
+
+pub fn escape_for_tsv(segment: &str) -> String {
+    return segment
+        .replace("<TSV_ESCAPE_N>", "\n")
+        .replace("<TSV_ESCAPE_T>", "\t")
+        .replace("<TSV_ESCAPE_R>", "\r")
+        .to_string();
+}

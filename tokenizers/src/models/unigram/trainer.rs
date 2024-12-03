@@ -1,5 +1,5 @@
 use crate::models::unigram::{lattice::Lattice, model::Unigram};
-use crate::tokenizer::{AddedToken, Result, Trainer};
+use crate::tokenizer::{AddedToken, Result, Trainer, escape_for_tsv};
 use crate::utils::parallelism::*;
 use crate::utils::progress::{ProgressBar, ProgressStyle};
 use log::debug;
@@ -666,19 +666,12 @@ impl Trainer for UnigramTrainer {
             .maybe_par_bridge()
             .map(|sequence| {
                 let split_seq = process(sequence.as_ref())?;
-                let mut count_str = split_seq.last().expect("This should work").to_string();
-                let segment = split_seq[0]
-                    .replace("<TSV_ESCAPE_N>", "\n")
-                    .replace("<TSV_ESCAPE_T>", "\t")
-                    .replace("<TSV_ESCAPE_R>", "\r")
-                    .clone();
-
-                
+                assert!(split_seq.len() == 2);
+                let count_str = split_seq.last().expect("This should work").to_string();
+                let segment = escape_for_tsv(split_seq[0].as_str());
                 let count_int: u32 = count_str.trim_end().parse().unwrap();
                 let mut map = HashMap::new();
-                for i in 0..split_seq.len() - 1 {
-                    map.insert(split_seq[i].clone(), count_int);
-                }                
+                map.insert(segment, count_int);
                 Ok(map)
             })
             .reduce(
