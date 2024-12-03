@@ -12,7 +12,7 @@ use std::path::Path;
 //  cargo run --package tokenizers --example train_bpe
 
 fn main() -> Result<()> {
-    let vocab_size: usize = 100;
+    let vocab_size: usize = 255000;
 
     let min_frequency = 5;
     let add_prefix_space = false;
@@ -46,7 +46,6 @@ fn main() -> Result<()> {
     input_files_dir = "/home/felipe_cohere_com/test_csvs/";
     let paths = fs::read_dir(input_files_dir).unwrap();
 
-    let file_paths: Vec<String> = paths
     .map(|entry| {
         let entry = entry.unwrap();
         let path = entry.path();
