@@ -8,6 +8,9 @@ use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 
+use std::fs::File;
+use std::io::{self, BufRead};
+
 // A token and a score
 type SentencePiece = (String, f64);
 
@@ -61,6 +64,9 @@ pub struct UnigramTrainer {
     pub initial_alphabet: HashSet<char>,
 
     #[builder(default = "None")]
+    pub seed_sentence_pieces_file: Option<String>,
+
+    #[builder(default = "None")]
     pub unk_token: Option<String>,
 
     #[builder(default = "16")]
@@ -69,6 +75,9 @@ pub struct UnigramTrainer {
     seed_size: usize,
     #[builder(default = "HashMap::new()")]
     words: HashMap<String, u32>,
+    
+    #[builder(default = "Vec::new()")]
+    precomputed_seed_pieces: Vec<SentencePiece>,
 }
 
 impl Default for UnigramTrainer {
@@ -541,7 +550,16 @@ impl UnigramTrainer {
 
         // We use a UNK token when training, whatever the `self.unk_token`
         pieces.push(("<UNK>".into(), f64::NAN));
-        pieces.extend(self.make_seed_sentence_pieces(&sentences, &progress));
+        if let Some(seed_sentence_pieces_file) = &self.seed_sentence_pieces_file {
+            assert!(self.precomputed_seed_pieces.len() > 0);
+            // We're not supposed to mutate precomputed_seed_pieces here, so we're forced
+            // to copy to avoid changing the entire interface of do_train. This might be ok
+            // given that this is normally on the millions items range.
+            pieces.extend(self.precomputed_seed_pieces.clone());
+        } else {
+            pieces.extend(self.make_seed_sentence_pieces(&sentences, &progress));
+        }
+        
         self.finalize_progress(&progress, sentences.len());
 
         // Useful to check compatibility with spm.
@@ -686,6 +704,25 @@ impl Trainer for UnigramTrainer {
             );
 
         self.words = words?;
+
+        if let Some(seed_sentence_pieces_file) = &self.seed_sentence_pieces_file {
+            let file_path_ref: &str = seed_sentence_pieces_file.as_str();
+            let file = File::open(file_path_ref)?;
+            let lines = io::BufReader::new(file).lines();
+                
+            for line in lines {
+                // Process here handles pretokenization defined on the train_from_pretrokenized_data method
+                // then we escape, and we add the seed pieces as usual.
+                let fields = process(line.unwrap().as_str()).unwrap();
+                assert!(fields.len() == 2);
+                let string_field = escape_for_tsv(fields[0].as_str());
+                let int_field: f64 = fields[1].parse().unwrap();
+                self.precomputed_seed_pieces.push((string_field, int_field));
+            }
+            to_log_prob(&mut self.precomputed_seed_pieces);
+        }
+
+
         Ok(())
     }    
 }
